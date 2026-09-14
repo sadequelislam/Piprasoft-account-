@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>একাউন্টস ও লেনদেন ম্যানেজমেন্ট সিস্টেম</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Firebase SDK (v9 Compat for easy script usage) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+    <!-- ================= 1. LOGIN SCREEN ================= -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="logo-icon"><i class="fa-solid fa-wallet"></i></div>
+                <h2>এডমিন লগইন</h2>
+                <p>সিস্টেমে প্রবেশ করতে আপনার ইমেইল ও পাসওয়ার্ড দিন</p>
+            </div>
+            <form id="login-form">
+                <div class="input-group">
+                    <label><i class="fa-solid fa-envelope"></i> ইমেইল ঠিকানা</label>
+                    <input type="email" id="login-email" placeholder="admin@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label><i class="fa-solid fa-lock"></i> পাসওয়ার্ড</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-login">
+                    <i class="fa-solid fa-right-to-bracket"></i> লগইন করুন
+                </button>
+            </form>
+            <div id="login-alert" class="alert alert-error hidden"></div>
+            <div class="demo-login-notice">
+                <p><i class="fa-solid fa-circle-info"></i> ডেমো মোড: ফায়ারবেস কনফিগ করার আগে আপনি যেকোনো ইমেইল ও পাসওয়ার্ড দিয়ে টেস্ট করতে পারবেন।</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 2. MAIN APP DASHBOARD ================= -->
+    <div id="app-screen" class="app-container hidden">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <i class="fa-solid fa-chart-line"></i>
+                <span>একাউন্টস প্যানেল</span>
+            </div>
+            
+            <nav class="sidebar-menu">
+                <button class="nav-item active" data-tab="dashboard">
+                    <i class="fa-solid fa-house"></i>
+                    <span>১. ড্যাশবোর্ড (হোম)</span>
+                </button>
+                <button class="nav-item" data-tab="fee-prodan">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                    <span>২. ফি প্রদান (জমা)</span>
+                </button>
+                <button class="nav-item" data-tab="cost">
+                    <i class="fa-solid fa-money-bill-transfer"></i>
+                    <span>৩. খরচ (ব্যয়)</span>
+                </button>
+                <button class="nav-item" data-tab="ledger">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                    <span>৪. সকল লেনদেন</span>
+                </button>
+                <button class="nav-item" data-tab="settings">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>৫. সেটিং</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <i class="fa-solid fa-circle-user"></i>
+                    <span id="current-user-email">admin@demo.com</span>
+                </div>
+                <button id="btn-logout" class="btn-logout" title="লগআউট">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="main-content">
+            
+            <!-- TOP BAR -->
+            <header class="top-bar">
+                <h1 id="page-title">ড্যাশবোর্ড (হোম)     Comany Number(01856628537)</h1>
+                <div class="status-badge" id="firebase-status">
+                    <span class="status-dot online"></span>
+                    <span id="status-text">অনলাইন মোড (Firebase)</span>
+                </div>
+            </header>
+
+            <!-- TAB 1: DASHBOARD -->
+            <section id="tab-dashboard" class="tab-content active">
+                <div class="metrics-grid">
+                    <!-- Metric 1: Total Income -->
+                    <div class="metric-card income">
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-arrow-down-long"></i>
+                        </div>
+                        <div class="metric-details">
+                            <h3>মোট জমা (আয়)</h3>
+                            <p class="amount">৳ <span id="dash-total-income">0</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Metric 2: Total Expense -->
+                    <div class="metric-card expense">
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-arrow-up-long"></i>
+                        </div>
+                        <div class="metric-details">
+                            <h3>মোট খরচ (ব্যয়)</h3>
+                            <p class="amount">৳ <span id="dash-total-expense">0</span></p>
+                        </div>
+                    </div>
+
+                    <!-- Metric 3: Current Balance -->
+                    <div class="metric-card balance">
+                        <div class="metric-icon">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <div class="metric-details">
+                            <h3>বর্তমান ক্যাশ (অবশিষ্ট)</h3>
+                            <p class="amount">৳ <span id="dash-current-balance">0</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Table Summary -->
+                <div class="card card-table margin-top">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-clock-rotate-left"></i> সাম্প্রতিক লেনদেন</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="switchTab('ledger')">সব দেখুন <i class="fa-solid fa-arrow-right"></i></button>
+                    </div>
+                    <div class="table-responsive">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>তারিখ</th>
+                                    <th>ধরন</th>
+                                    <th>খাত / বিবরণ</th>
+                                    <th>পরিমাণ</th>
+                                    <th>এন্ট্রি করেছেন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-transactions-tbody">
+                                <tr>
+                                    <td colspan="5" class="text-center">কোনো তথ্য পাওয়া যায়নি</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <!-- TAB 2: FEE PRODAN (TAKA JOMA) -->
+            <section id="tab-fee-prodan" class="tab-content">
+                <div class="card form-card">
+                    <div class="card-header border-income">
+                        <h2><i class="fa-solid fa-circle-plus"></i> ফি প্রদান / টাকা জমা করার ফর্ম</h2>
+                    </div>
+                    <form id="form-income">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label>এডমিন নাম </label>
+                                <input type="text" id="inc-name" placeholder="যেমন: রহিম আহমেদ" required>
+                            </div>
+                            <div class="input-group">
+                                <label>টাকার পরিমাণ (৳) *</label>
+                                <input type="number" id="inc-amount" min="1" placeholder="যেমন: 5000" required>
+                            </div>
+                            <div class="input-group">
+                                <label>ফি / আয়ের ধরন *</label>
+                                <select id="inc-category" required>
+                                    <option value="মাসিক ফি">মাসিক ফি</option>
+                                    <option value="ভর্তি ফি">ভর্তি ফি</option>
+                                    <option value="সার্ভিস চার্জ">সার্ভিস চার্জ</option>
+                                    <option value="পণ্য বিক্রয়">পণ্য বিক্রয়</option>
+                                    <option value="অন্যান্য জমা">অন্যান্য জমা</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>তারিখ *</label>
+                                <input type="date" id="inc-date" required>
+                            </div>
+                            <div class="input-group full-width">
+                                <label>বিস্তারিত নোট / রসিদ নং (ঐচ্ছিক)</label>
+                                <textarea id="inc-note" rows="2" placeholder="অতিরিক্ত বিবরণ বা রসিদ নাম্বার লিখুন..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fa-solid fa-check"></i> জমা নিশ্চিত করুন
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 3: COST (KHOROCH) -->
+            <section id="tab-cost" class="tab-content">
+                <div class="card form-card">
+                    <div class="card-header border-expense">
+                        <h2><i class="fa-solid fa-circle-minus"></i> খরচ / ব্যয় এন্ট্রি করার ফর্ম</h2>
+                    </div>
+                    <form id="form-expense">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label>এডমিন নাম </label>
+                                <input type="text" id="exp-title" placeholder="যেমন: অফিস ভাড়া / বিদ্যুৎ বিল" required>
+                            </div>
+                            <div class="input-group">
+                                <label>টাকার পরিমাণ (৳) *</label>
+                                <input type="number" id="exp-amount" min="1" placeholder="যেমন: 1200" required>
+                            </div>
+                            <div class="input-group">
+                                <label>খরচের ক্যাটাগরি *</label>
+                                <select id="exp-category" required>
+                                    <option value="অফিস খরচ">অফিস খরচ</option>
+                                    <option value="বিদ্যুৎ / ইউটিলিটি">বিদ্যুৎ / ইউটিলিটি</option>
+                                    <option value="বেতন">কর্মচারী বেতন</option>
+                                    <option value="যাতায়াত">যাতায়াত খরচ</option>
+                                    <option value="অন্যান্য ব্যয়">অন্যান্য ব্যয়</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>তারিখ *</label>
+                                <input type="date" id="exp-date" required>
+                            </div>
+                            <div class="input-group full-width">
+                                <label>ভাউচার নং / বিস্তারিত কারণ (ঐচ্ছিক)</label>
+                                <textarea id="exp-note" rows="2" placeholder="ভাউচার নম্বর বা খরচের বিশদ লিখুন..."></textarea>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fa-solid fa-check"></i> খরচ যুক্ত করুন
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- TAB 4: SOKOL LENDEN (DETAILED LEDGER) -->
+            <section id="tab-ledger" class="tab-content">
+                <div class="card card-table">
+                    <div class="card-header">
+                        <div>
+                            <h2><i class="fa-solid fa-book-open"></i> সকল লেনদেনের বিস্তারিত লেজার বিবরণী</h2>
+                            <p class="subtitle">সব এডমিনদের দ্বারা যুক্ত করা আয় ও ব্যয়ের সমন্বিত তালিকা</p>
+                        </div>
+                        <div class="filter-group">
+                            <select id="ledger-filter-type">
+                                <option value="ALL">সকল লেনদেন</option>
+                                <option value="INCOME">শুধুমাত্র জমা (আয়)</option>
+                                <option value="EXPENSE">শুধুমাত্র খরচ (ব্যয়)</option>
+                            </select>
+                            <button id="btn-export-csv" class="btn btn-secondary btn-sm">
+                                <i class="fa-solid fa-file-csv"></i> এক্সপোর্ট (CSV)
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table id="ledger-table">
+                            <thead>
+                                <tr>
+                                    <th>তারিখ</th>
+                                    <th>ধরন</th>
+                                    <th>খাত / শিরোনাম</th>
+                                    <th>বিবরণ / নোট</th>
+                                    <th>পরিমাণ (৳)</th>
+                                    <th>যুক্ত করেছেন (এডমিন)</th>
+                                    <th>অ্যাকশন</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ledger-tbody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 5: SETTINGS -->
+            <section id="tab-settings" class="tab-content">
+                <div class="settings-grid">
+                    
+                    <!-- Firebase Configuration Panel -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fa-solid fa-fire"></i> ফায়ারবেস কনফিগারেশন সেটআপ</h2>
+                        </div>
+                        <p class="text-muted">অন্যান্য সকল এডমিনদের সাথে রিয়েল-টাইমে ডাটা সিঙ্ক করার জন্য আপনার Firebase প্রজেক্টের API Key সমূহে নিচে বসান:</p>
+                        
+                        <form id="form-firebase-config">
+                            <div class="input-group">
+                                <label>apiKey</label>
+                                <input type="text" id="fb-apiKey" placeholder="AIzaSy...">
+                            </div>
+                            <div class="input-group">
+                                <label>authDomain</label>
+                                <input type="text" id="fb-authDomain" placeholder="your-app.firebaseapp.com">
+                            </div>
+                            <div class="input-group">
+                                <label>projectId</label>
+                                <input type="text" id="fb-projectId" placeholder="your-app-id">
+                            </div>
+                            <div class="input-group">
+                                <label>storageBucket</label>
+                                <input type="text" id="fb-storageBucket" placeholder="your-app.appspot.com">
+                            </div>
+                            <div class="input-group">
+                                <label>messagingSenderId</label>
+                                <input type="text" id="fb-messagingSenderId" placeholder="1234567890">
+                            </div>
+                            <div class="input-group">
+                                <label>appId</label>
+                                <input type="text" id="fb-appId" placeholder="1:1234567890:web:abc123def">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa-solid fa-floppy-disk"></i> ফায়ারবেস সেটআপ সেভ করুন
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Admin System & Preferences -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2><i class="fa-solid fa-user-shield"></i> এডমিন সিস্টেম ও অপশন</h2>
+                        </div>
+                        
+                        <div class="setting-item">
+                            <div>
+                                <h4>বর্তমান এডমিন নাম</h4>
+                                <p class="text-muted">লেনদেন এন্ট্রির সাথে এই নামটি যুক্ত হবে</p>
+                            </div>
+                            <input type="text" id="admin-display-name" value="সুপার এডমিন" style="width: 180px;">
+                        </div>
+
+                        <div class="setting-item margin-top">
+                            <div>
+                                <h4>থিম পচ্ছন্দ</h4>
+                                <p class="text-muted">ডার্ক / লাইট ইন্টারফেস নির্বাচন করুন</p>
+                            </div>
+                            <button id="btn-toggle-theme" class="btn btn-secondary">
+                                <i class="fa-solid fa-moon"></i> নাইট মোড অন/অফ
+                            </button>
+                        </div>
+
+                        <div class="setting-item margin-top border-danger">
+                            <div>
+                                <h4>লোকাল ডাটা রিকভারি / ক্লিয়ার</h4>
+                                <p class="text-muted">লোকাল ডেমো ডাটা রিসেট করতে চান?</p>
+                            </div>
+                            <button id="btn-reset-demo" class="btn btn-outline-danger">
+                                <i class="fa-solid fa-trash"></i> ডেমো ডাটা রিসেট
+                            </button>
+                        </div>
+
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Application Script -->
+    <script src="firebase-config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
