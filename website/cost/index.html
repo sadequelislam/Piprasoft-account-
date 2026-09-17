@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>খরচ (ব্যয়) এন্ট্রি - একাউন্টস প্যানেল</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="cost">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>লগইন যাচাই করা হচ্ছে, অপেক্ষা করুন...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- ================= খরচ (ব্যয়) ফর্ম ================= -->
+            <div class="card form-card">
+                <div class="card-header border-expense">
+                    <h2><i class="fa-solid fa-circle-minus"></i> খরচ / ব্যয় এন্ট্রি করার ফর্ম</h2>
+                </div>
+                <form id="form-expense">
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>এডমিন নাম</label>
+                            <input type="text" id="exp-title" placeholder="যেমন: অফিস ভাড়া / বিদ্যুৎ বিল" required>
+                        </div>
+                        <div class="input-group">
+                            <label>টাকার পরিমাণ (৳) *</label>
+                            <input type="number" id="exp-amount" min="1" placeholder="যেমন: 1200" required>
+                        </div>
+                        <div class="input-group">
+                            <label>খরচের ক্যাটাগরি *</label>
+                            <select id="exp-category" required>
+                                <option value="অফিস খরচ">অফিস খরচ</option>
+                                <option value="বিদ্যুৎ / ইউটিলিটি">বিদ্যুৎ / ইউটিলিটি</option>
+                                <option value="বেতন">কর্মচারী বেতন</option>
+                                <option value="যাতায়াত">যাতায়াত খরচ</option>
+                                <option value="অন্যান্য ব্যয়">অন্যান্য ব্যয়</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>তারিখ *</label>
+                            <input type="date" id="exp-date" required>
+                        </div>
+                        <div class="input-group full-width">
+                            <label>ভাউচার নং / বিস্তারিত কারণ (ঐচ্ছিক)</label>
+                            <textarea id="exp-note" rows="2" placeholder="ভাউচার নম্বর বা খরচের বিশদ লিখুন..."></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fa-solid fa-check"></i> খরচ যুক্ত করুন
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Shared Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <!-- ============ এই পেজের নিজস্ব কোড ============ -->
+    <script>
+        function onPageReady(user) {
+            // তারিখের ঘরে আজকের তারিখ বসানো
+            document.getElementById("exp-date").value = new Date().toISOString().split("T")[0];
+
+            document.getElementById("form-expense").addEventListener("submit", handleExpenseSubmit);
+        }
+
+        function handleExpenseSubmit(e) {
+            e.preventDefault();
+
+            const newItem = {
+                type: "EXPENSE",
+                name: document.getElementById("exp-title").value.trim(),
+                amount: parseFloat(document.getElementById("exp-amount").value),
+                category: document.getElementById("exp-category").value,
+                date: document.getElementById("exp-date").value,
+                note: document.getElementById("exp-note").value.trim()
+            };
+
+            // সেভ সফল হলে ড্যাশবোর্ডে ফিরে যাওয়া হবে
+            saveTransaction(newItem, () => {
+                window.location.href = "../dashboard/";
+            });
+        }
+    </script>
+</body>
+</html>
