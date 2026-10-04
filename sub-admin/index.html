@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>সাব এডমিন নির্বাচন ও পারমিশন - একাউন্টস প্যানেল</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="sub-admin">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>লগইন যাচাই করা হচ্ছে, অপেক্ষা করুন...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- ================= ব্যবহারবিধি নোটিশ ================= -->
+            <div class="notice-info">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>যেকোনো ইউজারের পাশের চেকবক্সগুলো টিক দিয়ে <strong>"পারমিশন সেভ করুন"</strong> চাপলেই সে সাব এডমিন হয়ে যাবে। সব টিক সরিয়ে সেভ করলে আবার সাধারণ ইউজার হয়ে যাবে।</span>
+            </div>
+
+            <!-- ================= সাব এডমিন তালিকা ================= -->
+            <div class="card card-table">
+                <div class="card-header">
+                    <div>
+                        <h2><i class="fa-solid fa-user-shield"></i> ইউজার ও সাব এডমিন তালিকা</h2>
+                        <p class="subtitle">কাকে কী কাজের অনুমতি দেওয়া আছে — এখান থেকেই নিয়ন্ত্রণ করুন</p>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="sub-admin-table">
+                        <thead>
+                            <tr>
+                                <th>নাম</th>
+                                <th>ইমেইল</th>
+                                <th>ফি প্রদান<br><small>(সরাসরি)</small></th>
+                                <th>খরচ<br><small>(সরাসরি)</small></th>
+                                <th>রিকোয়েস্ট<br>অনুমোদন</th>
+                                <th>লোন<br>ম্যানেজমেন্ট</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sub-admin-tbody">
+                            <tr><td colspan="7" class="text-center">লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Shared Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <!-- ============ এই পেজের নিজস্ব কোড (সাব এডমিন ম্যানেজমেন্ট) ============ -->
+    <script>
+        let allUsers = [];        // users কালেকশন থেকে
+        let subAdminsMap = {};    // uid/email → { permissions: {...} }
+
+        function onPageReady(user) {
+            // শুধু মেইন এডমিন এই পেজ দেখতে পারবেন
+            if (!isMainAdmin()) {
+                alert("এই পেজটি শুধুমাত্র মেইন এডমিন দেখতে পারবেন!");
+                window.location.replace("../dashboard/");
+                return;
+            }
+
+            if (firestoreReady()) {
+                // সব রেজিস্টার্ড ইউজার
+                db.collection("users").orderBy("createdAt", "desc")
+                    .onSnapshot(snap => {
+                        allUsers = [];
+                        snap.forEach(doc => {
+                            allUsers.push({ uid: doc.id, ...doc.data() });
+                        });
+                        renderSubAdminTable();
+                    }, err => {
+                        console.error("Users load error:", err);
+                        allUsers = [];
+                        renderSubAdminTable();
+                    });
+
+                // বর্তমান সাব এডমিনদের পারমিশন
+                db.collection("sub_admins")
+                    .onSnapshot(snap => {
+                        subAdminsMap = {};
+                        snap.forEach(doc => {
+                            subAdminsMap[doc.id] = doc.data();
+                        });
+                        renderSubAdminTable();
+                    }, err => {
+                        console.error("SubAdmins load error:", err);
+                    });
+            } else {
+                // ডেমো মোড
+                try {
+                    const demoUsers = JSON.parse(storageGet("demo_registered_users") || "[]");
+                    allUsers = demoUsers.map((u, i) => ({
+                        uid: u.email,
+                        name: u.name,
+                        email: u.email,
+                        createdAt: u.createdAt
+                    }));
+                } catch (e) {
+                    allUsers = [];
+                }
+                try {
+                    subAdminsMap = JSON.parse(storageGet(SUB_ADMIN_STORAGE_KEY) || "{}");
+                } catch (e) {
+                    subAdminsMap = {};
+                }
+                renderSubAdminTable();
+            }
+        }
+
+        // টেবিল আঁকা
+        function renderSubAdminTable() {
+            const tbody = document.getElementById("sub-admin-tbody");
+            if (!tbody) return;
+
+            if (!allUsers || allUsers.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">কোনো রেজিস্টার্ড ইউজার পাওয়া যায়নি। ইউজাররা সাইটে রেজিস্টার/লগইন করলে এই তালিকায় দেখা যাবে।</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = allUsers.map(u => {
+                const key = u.uid || u.email;
+                const perms = (subAdminsMap[key] && subAdminsMap[key].permissions) || {};
+                const isSub = Object.values(perms).some(v => v === true);
+
+                const cb = (perm) => `
+                    <input type="checkbox" class="perm-checkbox" data-key="${escapeHtml(key)}"
+                           data-perm="${perm}" ${perms[perm] ? "checked" : ""}
+                           onchange="markRowChanged('${escapeHtml(key)}')">
+                `;
+
+                return `
+                    <tr id="row-${escapeHtml(key)}">
+                        <td><strong>${escapeHtml(u.name) || '-'}</strong>
+                            ${isSub ? '<br><span class="badge badge-approved">সাব এডমিন</span>' : '<br><span class="badge badge-pending">ইউজার</span>'}
+                        </td>
+                        <td>${escapeHtml(u.email) || '-'}</td>
+                        <td class="text-center">${cb("addIncome")}</td>
+                        <td class="text-center">${cb("addExpense")}</td>
+                        <td class="text-center">${cb("approveRequests")}</td>
+                        <td class="text-center">${cb("manageLoans")}</td>
+                        <td>
+                            <div class="action-group">
+                                <button class="btn btn-success btn-sm" onclick="saveSubAdmin('${escapeHtml(key)}', '${escapeHtml(u.name || "")}', '${escapeHtml(u.email || "")}')">
+                                    <i class="fa-solid fa-floppy-disk"></i> সেভ
+                                </button>
+                                ${isSub ? `<button class="btn btn-outline-danger btn-sm" onclick="removeSubAdmin('${escapeHtml(key)}')" title="সাব এডমিন থেকে সরান">
+                                    <i class="fa-solid fa-user-minus"></i> সরান
+                                </button>` : ""}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        // চেকবক্স বদলালে সেভ বাটন হাইলাইট
+        function markRowChanged(key) {
+            const row = document.getElementById("row-" + key);
+            if (row) row.classList.add("row-changed");
+        }
+
+        // পারমিশন সেভ করা
+        function saveSubAdmin(key, name, email) {
+            // ওই ইউজারের সব চেকবক্স সংগ্রহ
+            const boxes = document.querySelectorAll(`.perm-checkbox[data-key="${CSS.escape(key)}"]`);
+            const permissions = {};
+            boxes.forEach(b => {
+                permissions[b.getAttribute("data-perm")] = b.checked;
+            });
+
+            const anyTrue = Object.values(permissions).some(v => v === true);
+
+            if (!anyTrue && subAdminsMap[key]) {
+                // সব টিক সরানো + আগে সাব এডমিন ছিল → সরিয়ে ফেলা
+                if (confirm("সব পারমিশন সরানো হয়েছে — সাব এডমিন থেকে বাদ দিতে চান?")) {
+                    removeSubAdmin(key);
+                }
+                return;
+            }
+
+            const payload = {
+                name: name || "",
+                email: email || "",
+                permissions: permissions,
+                updatedAt: new Date().toISOString(),
+                updatedBy: getAdminName()
+            };
+
+            if (firestoreReady()) {
+                db.collection("sub_admins").doc(key).set(payload)
+                    .then(() => alert("✅ পারমিশন সেভ হয়েছে!\nইউজারটি পরবর্তী লগইন/রিফ্রেশে সাব এডমিন হিসেবে কাজ করতে পারবেন।"))
+                    .catch(err => alert("ত্রুটি: " + err.message));
+            } else {
+                const all = JSON.parse(storageGet(SUB_ADMIN_STORAGE_KEY) || "{}");
+                const emailKey = (email || key).toLowerCase();
+                all[emailKey] = payload;
+                storageSet(SUB_ADMIN_STORAGE_KEY, JSON.stringify(all));
+                subAdminsMap = all;
+                alert("✅ পারমিশন সেভ হয়েছে (ডেমো মোড)!");
+                renderSubAdminTable();
+            }
+        }
+
+        // সাব এডমিন থেকে সরিয়ে ফেলা
+        function removeSubAdmin(key) {
+            if (!confirm("এই ইউজারকে সাব এডমিন থেকে সরিয়ে দিতে চান? তিনি আবার সাধারণ ইউজার হয়ে যাবেন।")) return;
+
+            if (firestoreReady()) {
+                db.collection("sub_admins").doc(key).delete()
+                    .then(() => alert("সাব এডমিন থেকে সরিয়ে দেওয়া হয়েছে।"))
+                    .catch(err => alert("ত্রুটি: " + err.message));
+            } else {
+                const all = JSON.parse(storageGet(SUB_ADMIN_STORAGE_KEY) || "{}");
+                delete all[key];
+                storageSet(SUB_ADMIN_STORAGE_KEY, JSON.stringify(all));
+                subAdminsMap = all;
+                alert("সাব এডমিন থেকে সরিয়ে দেওয়া হয়েছে (ডেমো মোড)।");
+                renderSubAdminTable();
+            }
+        }
+    </script>
+</body>
+</html>

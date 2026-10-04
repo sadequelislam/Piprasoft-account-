@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fund / Earn Deposit - Accounts Panel</title>
+    <!-- FontAwesome & Inter Font for minimal UI -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+
+    <style>
+        /* ================= Clean & Professional UI ================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        /* common.js থেকে আসা বাংলা টাইটেলটি আপাতত লুকিয়ে রাখা হলো */
+        #app-topbar .page-title,
+        .old-page-title {
+            display: none !important;
+        }
+
+        .modern-card {
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-top: 10px;
+        }
+
+        /* Compact Toggle Switch */
+        .toggle-wrapper {
+            display: inline-flex;
+            background: #f0f2f5;
+            border-radius: 6px;
+            padding: 4px;
+            margin-bottom: 24px;
+        }
+
+        .toggle-btn {
+            padding: 8px 20px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 600;
+            color: #606770;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .toggle-btn.active-fund {
+            background: #10b981;
+            color: #fff;
+        }
+
+        .toggle-btn.active-earn {
+            background: #1877f2;
+            color: #fff;
+        }
+
+        /* ================= রেসপন্সিভ ফর্ম গ্রিড (Responsive Grid System) ================= */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 1200px) {
+            .form-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Clean Inputs */
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #606770;
+            margin-bottom: 6px;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #ccd0d5;
+            border-radius: 6px;
+            outline: none;
+            background: #fafbfc;
+            color: #1c1e21;
+            transition: 0.2s;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus,
+        .input-group textarea:focus {
+            border-color: #1877f2;
+            background: #fff;
+            box-shadow: 0 0 0 2px #e7f3ff;
+        }
+
+        /* Hidden elements */
+        .hidden-input-group {
+            display: none;
+        }
+
+        /* Minimal File Upload */
+        .file-upload-wrapper {
+            border: 1px dashed #ccd0d5;
+            background-color: #fafbfc;
+            border-radius: 6px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .file-upload-wrapper:hover {
+            border-color: #1877f2;
+            background-color: #f5f9ff;
+        }
+
+        .file-upload-wrapper i {
+            color: #8d949e;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .file-upload-wrapper p {
+            margin: 0;
+            color: #1c1e21;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .file-upload-wrapper span {
+            display: block;
+            font-size: 12px;
+            color: #8d949e;
+            margin-top: 5px;
+        }
+
+        #inc-document {
+            display: none;
+        }
+
+        .btn-submit {
+            background-color: #1877f2;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 6px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: 0.2s;
+        }
+
+        .btn-submit:hover {
+            background-color: #166fe5;
+        }
+
+        .btn-submit.fund-mode {
+            background-color: #10b981;
+        }
+
+        .btn-submit.fund-mode:hover {
+            background-color: #059669;
+        }
+
+        .btn-loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body data-page="fee-prodan">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>Authenticating user...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ কন্টেইনার -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- মূল ফর্ম কার্ড -->
+            <div class="card modern-card">
+
+                <!-- Toggle Buttons -->
+                <div class="toggle-wrapper">
+                    <button type="button" class="toggle-btn active-fund" id="btn-fund" onclick="switchType('FUND')">
+                        Fund
+                    </button>
+                    <button type="button" class="toggle-btn" id="btn-earn" onclick="switchType('EARN')">
+                        Earn
+                    </button>
+                </div>
+
+                <form id="transaction-form">
+                    <input type="hidden" id="entry-type" value="FUND">
+
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label id="label-name">Depositor Name *</label>
+                            <input type="text" id="inc-name" list="employee-names" placeholder="Select or type name"
+                                required>
+                            <!-- ডাইনামিক ফিল্ড -->
+                            <datalist id="employee-names">
+                                <!-- ডাটাবেজ থেকে অটোমেটিক নাম আসবে -->
+                            </datalist>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Amount *</label>
+                            <input type="number" id="inc-amount" min="1" placeholder="0.00" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Category *</label>
+                            <select id="inc-category" onchange="checkCategory(this)" required>
+                                <option value="Monthly fee">Monthly fee</option>
+                                <option value="Service charge">Service charge</option>
+                                <option value="Capital Injection">Capital Injection</option>
+                                <option value="Other Fund">Other Fund</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Date *</label>
+                            <input type="date" id="inc-date" required>
+                        </div>
+
+                        <div class="input-group full-width hidden-input-group" id="other-reason-box">
+                            <label>Specific Reason *</label>
+                            <input type="text" id="inc-other-reason" placeholder="Type specific reason...">
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Attachment (Optional)</label>
+                            <div class="file-upload-wrapper" id="upload-box">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <p id="file-name-display">Click to upload file</p>
+                                <span>Max size: 2 MB (JPG, PNG, PDF)</span>
+                            </div>
+                            <input type="file" id="inc-document" accept="image/jpeg, image/png, application/pdf">
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Notes (Optional)</label>
+                            <textarea id="inc-description" rows="2"
+                                placeholder="Add transaction details or notes..."></textarea>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="btn-submit fund-mode">
+                        Submit Request
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <script>
+        const FUND_CATEGORIES = ["Capital Injection", "Internal Transfer", "Loan Received", "Other Fund"];
+        const EARN_CATEGORIES = ["Service Charge", "Product Sale", "Other Income"];
+
+        // ইউজারের রোল বোঝার জন্য একটি গ্লোবাল ভেরিয়েবল
+        let isAdminUser = false;
+
+        function onPageReady(user) {
+            document.getElementById("inc-date").value = new Date().toISOString().split("T")[0];
+
+            // ডেমো অ্যাডমিন চেকিং লজিক (ভবিষ্যতে এটি আপনার ডাটাবেজের ইউজার রোলের সাথে মেলাতে হবে)
+            // আপাতত ধরে নিচ্ছি যদি ইমেইলে 'admin' লেখা থাকে, তবে সে অ্যাডমিন।
+            if (user && user.email && (user.email.includes("admin") || user.email === "superadmin@domain.com")) {
+                isAdminUser = true;
+            }
+
+            // পেজ লোড হওয়ার পর ইউজারের ক্ষমতা অনুযায়ী বাটনের নাম ঠিক করা
+            updateButtonText('FUND');
+
+            const uploadBox = document.getElementById("upload-box");
+            const fileInput = document.getElementById("inc-document");
+            uploadBox.addEventListener("click", () => fileInput.click());
+            fileInput.addEventListener("change", handleFileSelect);
+
+            document.getElementById("transaction-form").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                await handleTransactionSubmit(user);
+            });
+
+            loadSystemNames();
+        }
+
+        // অ্যাডমিন হলে সরাসরি জমা, ইউজার হলে রিকোয়েস্ট - বাটনের টেক্সট আপডেট করার ফাংশন
+        function updateButtonText(type) {
+            const submitBtn = document.getElementById("submit-btn");
+            if (isAdminUser) {
+                submitBtn.innerText = type === 'FUND' ? "Add Fund (Direct Deposit)" : "Add Earn (Direct Deposit)";
+            } else {
+                submitBtn.innerText = "Submit Request";
+            }
+        }
+
+        async function loadSystemNames() {
+            try {
+                if (db) {
+                    const snapshot = await db.collection('transactions').get();
+                    const namesSet = new Set();
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.name) {
+                            namesSet.add(data.name);
+                        }
+                    });
+                    const datalist = document.getElementById('employee-names');
+                    datalist.innerHTML = "";
+                    namesSet.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        datalist.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error("সিস্টেম থেকে নাম লোড করতে সমস্যা হয়েছে: ", error);
+            }
+        }
+
+        function switchType(type) {
+            document.getElementById('entry-type').value = type;
+            const btnFund = document.getElementById('btn-fund');
+            const btnEarn = document.getElementById('btn-earn');
+            const categorySelect = document.getElementById('inc-category');
+            const submitBtn = document.getElementById('submit-btn');
+            const labelName = document.getElementById('label-name');
+
+            document.getElementById('inc-other-reason').value = "";
+            document.getElementById('other-reason-box').style.display = "none";
+            categorySelect.innerHTML = "";
+
+            if (type === 'FUND') {
+                btnFund.className = "toggle-btn active-fund";
+                btnEarn.className = "toggle-btn";
+                submitBtn.className = "btn-submit fund-mode";
+                labelName.innerText = "Depositor Name *";
+                FUND_CATEGORIES.forEach(cat => categorySelect.add(new Option(cat, cat)));
+            } else {
+                btnEarn.className = "toggle-btn active-earn";
+                btnFund.className = "toggle-btn";
+                submitBtn.className = "btn-submit";
+                labelName.innerText = "Client / Source Name *";
+                EARN_CATEGORIES.forEach(cat => categorySelect.add(new Option(cat, cat)));
+            }
+
+            // সুইচ করলে বাটনের টেক্সট আপডেট হবে
+            updateButtonText(type);
+        }
+
+        function checkCategory(select) {
+            const otherBox = document.getElementById('other-reason-box');
+            const otherInput = document.getElementById('inc-other-reason');
+            if (select.value.includes("Other")) {
+                otherBox.style.display = "block";
+                otherInput.required = true;
+            } else {
+                otherBox.style.display = "none";
+                otherInput.required = false;
+                otherInput.value = "";
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            const display = document.getElementById('file-name-display');
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File size exceeds 2 MB.");
+                e.target.value = "";
+                return;
+            }
+            display.innerText = file.name;
+            display.style.color = "#10b981";
+        }
+
+        async function handleTransactionSubmit(user) {
+            const submitBtn = document.getElementById("submit-btn");
+            const fileInput = document.getElementById("inc-document");
+            const file = fileInput.files[0];
+
+            submitBtn.classList.add("btn-loading");
+            submitBtn.innerText = "Processing...";
+
+            let categoryValue = document.getElementById("inc-category").value;
+            if (categoryValue.includes("Other")) {
+                categoryValue = "Other: " + document.getElementById("inc-other-reason").value.trim();
+            }
+
+            let transactionData = {
+                type: document.getElementById("entry-type").value,
+                name: document.getElementById("inc-name").value.trim(),
+                amount: parseFloat(document.getElementById("inc-amount").value),
+                category: categoryValue,
+                date: document.getElementById("inc-date").value,
+                description: document.getElementById("inc-description").value.trim(),
+                // ম্যাজিক লজিক: অ্যাডমিন হলে APPROVED, না হলে PENDING
+                status: isAdminUser ? "APPROVED" : "PENDING",
+                submittedBy: user ? user.uid : "Unknown",
+                createdAt: new Date().toISOString(),
+                documentDetails: { hasDocument: false, fileUrl: null, filePath: null, fileType: null }
+            };
+
+            try {
+                if (file) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    transactionData.documentDetails = {
+                        hasDocument: true, fileUrl: "fake_url_for_now",
+                        filePath: `receipts/income/fake_${file.name}`, fileType: file.type
+                    };
+                }
+
+                saveTransaction(transactionData, () => {
+                    if (isAdminUser) {
+                        alert("Deposited successfully into main balance!");
+                    } else {
+                        alert("Request submitted successfully and is pending approval.");
+                    }
+                    window.location.href = "../dashboard/";
+                });
+            } catch (error) {
+                console.error("Error: ", error);
+                alert("An error occurred. Please try again.");
+                submitBtn.classList.remove("btn-loading");
+                updateButtonText(document.getElementById("entry-type").value);
+            }
+        }
+    </script>
+</body>
+
+</html>

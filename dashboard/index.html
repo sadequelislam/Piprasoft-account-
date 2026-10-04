@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ড্যাশবোর্ড (হোম) - একাউন্টস প্যানেল</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="dashboard">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>লগইন যাচাই করা হচ্ছে, অপেক্ষা করুন...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- ================= মূল মেট্রিক কার্ড (শুধু সংখ্যা) ================= -->
+            <div class="metrics-grid">
+                <div class="metric-card income">
+                    <div class="metric-icon"><i class="fa-solid fa-arrow-down-long"></i></div>
+                    <div class="metric-details">
+                        <h3 id="m1-title">মোট জমা (আয়)</h3>
+                        <p class="amount">৳ <span id="dash-total-income">0</span></p>
+                    </div>
+                </div>
+
+                <div class="metric-card expense">
+                    <div class="metric-icon"><i class="fa-solid fa-arrow-up-long"></i></div>
+                    <div class="metric-details">
+                        <h3 id="m2-title">মোট খরচ (ব্যয়)</h3>
+                        <p class="amount">৳ <span id="dash-total-expense">0</span></p>
+                    </div>
+                </div>
+
+                <div class="metric-card balance">
+                    <div class="metric-icon"><i class="fa-solid fa-scale-balanced"></i></div>
+                    <div class="metric-details">
+                        <h3 id="m3-title">বর্তমান ক্যাশ (অবশিষ্ট)</h3>
+                        <p class="amount">৳ <span id="dash-current-balance">0</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========== পেন্ডিং রিকোয়েস্টের সারসংক্ষেপ (শুধু সংখ্যা — বিস্তারিত নয়!) ========== -->
+            <!-- এডমিন / পারমিশন থাকা সাব এডমিন দেখবেন -->
+            <div class="metrics-grid margin-top hidden" id="pending-stats-grid">
+                <!-- JS দিয়ে কার্ড বসানো হয় -->
+            </div>
+
+            <!-- ========== ইউজার ভিউ: আমার রিকোয়েস্টের সারসংক্ষেপ (শুধু সংখ্যা) ========== -->
+            <div class="metrics-grid margin-top hidden" id="user-stats-grid">
+                <!-- JS দিয়ে কার্ড বসানো হয় -->
+            </div>
+
+            <!-- ================= সাম্প্রতিক লেনদেন ================= -->
+            <div class="card card-table margin-top">
+                <div class="card-header">
+                    <h2 id="recent-title"><i class="fa-solid fa-clock-rotate-left"></i> সাম্প্রতিক লেনদেন</h2>
+                    <a href="../ledger/" class="btn btn-secondary btn-sm">সব দেখুন <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>তারিখ</th>
+                                <th>ধরন</th>
+                                <th>খাত / বিবরণ</th>
+                                <th>পরিমাণ</th>
+                                <th>এন্ট্রি করেছেন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-transactions-tbody">
+                            <tr><td colspan="5" class="text-center">লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Shared Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <!-- ============ এই পেজের নিজস্ব কোড ============ -->
+    <script>
+        let loansData = [];
+        let canApprove = false;
+        let canManageLoans = false;
+
+        // লগইন ঠিক থাকলে common.js এই ফাংশনটা ডাকবে
+        function onPageReady(user) {
+            canApprove = hasPermission("approveRequests");
+            canManageLoans = hasPermission("manageLoans");
+
+            // ---- মেট্রিক টাইটেল (এডমিন = প্রতিষ্ঠান, ইউজার = নিজের) ----
+            if (isMainAdmin()) {
+                document.getElementById("m1-title").innerText = "মোট জমা (আয়)";
+                document.getElementById("m2-title").innerText = "মোট খরচ (ব্যয়)";
+                document.getElementById("m3-title").innerText = "বর্তমান ক্যাশ (অবশিষ্ট)";
+            } else {
+                document.getElementById("m1-title").innerText = "আমার জমা (অনুমোদিত)";
+                document.getElementById("m2-title").innerText = "আমার খরচ (অনুমোদিত)";
+                document.getElementById("m3-title").innerText = "আমার লোন (মোট)";
+                document.getElementById("recent-title").innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> আমার সাম্প্রতিক লেনদেন';
+            }
+
+            initTransactionsListener(updateDashboard);
+            initPendingListener(renderPendingStats);
+            initLoansListener(list => {
+                loansData = list || [];
+                updateDashboard();
+                renderPendingStats();
+            });
+        }
+
+        // ডাটা বদলালেই ড্যাশবোর্ড নতুন করে আঁকা হয়
+        function updateDashboard() {
+            if (isMainAdmin()) {
+                // ---- মেইন এডমিন: প্রতিষ্ঠানের পুরো হিসাব ----
+                const m = calculateMetrics();
+                document.getElementById("dash-total-income").innerText = m.totalIncome.toLocaleString("bn-BD");
+                document.getElementById("dash-total-expense").innerText = m.totalExpense.toLocaleString("bn-BD");
+                document.getElementById("dash-current-balance").innerText = m.balance.toLocaleString("bn-BD");
+                renderRecentTransactions("recent-transactions-tbody", transactions);
+            } else {
+                // ---- ইউজার/সাব এডমিন: শুধু নিজের জমা/খরচ + লোন ----
+                const uid = getUserId();
+                const mine = transactions.filter(t => t.createdBy === uid);
+                const m = calculateMetrics(mine);
+
+                document.getElementById("dash-total-income").innerText = m.totalIncome.toLocaleString("bn-BD");
+                document.getElementById("dash-total-expense").innerText = m.totalExpense.toLocaleString("bn-BD");
+
+                // আমার লোনের মোট পরিমাণ (শুধু সংখ্যা — বিস্তারিত লোন রিকোয়েস্ট পেজে)
+                const loanTotal = (loansData || []).reduce((sum, l) => sum + Number(l.amount || 0), 0);
+                document.getElementById("dash-current-balance").innerText = loanTotal.toLocaleString("bn-BD");
+
+                renderRecentTransactions("recent-transactions-tbody", mine);
+            }
+        }
+
+        // =====================================================
+        // পেন্ডিং রিকোয়েস্টের সারসংক্ষেপ — শুধু সংখ্যা দেখায়
+        // (বিস্তারিত দেখতে নির্দিষ্ট পেজে যেতে হয়)
+        // =====================================================
+        function renderPendingStats() {
+            // ---- এডমিন/সাব এডমিন: পেন্ডিং ফি + খরচ + লোন রিকোয়েস্টের সংখ্যা ----
+            if (canApprove || canManageLoans) {
+                const grid = document.getElementById("pending-stats-grid");
+                let html = "";
+
+                if (canApprove) {
+                    // পেন্ডিং ফি (জমা) রিকোয়েস্ট
+                    const feePending = pendingEntries.filter(p => p.type === "INCOME" && (p.status || "PENDING") === "PENDING");
+                    const feeTotal = feePending.reduce((s, p) => s + Number(p.amount || 0), 0);
+                    html += statCardHTML("fa-hand-holding-dollar", "পেন্ডিং ফি রিকোয়েস্ট",
+                        feePending.length, feeTotal, "../fee-request/");
+
+                    // পেন্ডিং খরচ রিকোয়েস্ট
+                    const costPending = pendingEntries.filter(p => p.type === "EXPENSE" && (p.status || "PENDING") === "PENDING");
+                    const costTotal = costPending.reduce((s, p) => s + Number(p.amount || 0), 0);
+                    html += statCardHTML("fa-cart-arrow-down", "পেন্ডিং খরচ রিকোয়েস্ট",
+                        costPending.length, costTotal, "../cost-request/");
+                }
+
+                if (canManageLoans) {
+                    // পেন্ডিং লোন রিকোয়েস্ট
+                    const loanPending = (loansData || []).filter(l => l.status === "PENDING");
+                    const loanTotal = loanPending.reduce((s, l) => s + Number(l.amount || 0), 0);
+                    html += statCardHTML("fa-money-check-dollar", "পেন্ডিং লোন রিকোয়েস্ট",
+                        loanPending.length, loanTotal, "../loan-manage/");
+                }
+
+                grid.innerHTML = html;
+                grid.classList.remove("hidden");
+            }
+
+            // ---- সাধারণ ইউজার: নিজের পাঠানো রিকোয়েস্টের সংখ্যা ----
+            if (!canApprove) {
+                const grid = document.getElementById("user-stats-grid");
+                const myPending = pendingEntries.filter(p => (p.status || "PENDING") === "PENDING").length;
+                const myApproved = pendingEntries.filter(p => p.status === "APPROVED").length;
+
+                grid.innerHTML = statCardHTML("fa-paper-plane", "আমার অপেক্ষমান রিকোয়েস্ট", myPending, null, "../fee-prodan/") +
+                                 statCardHTML("fa-circle-check", "আমার অনুমোদিত রিকোয়েস্ট", myApproved, null, "../ledger/");
+                grid.classList.remove("hidden");
+            }
+        }
+
+        // ছোট সংখ্যা-কার্ড বানানোর হেল্পার
+        function statCardHTML(icon, title, count, totalAmount, link) {
+            return `
+                <div class="metric-card pending-stat-card">
+                    <div class="metric-icon"><i class="fa-solid ${icon}"></i></div>
+                    <div class="metric-details">
+                        <h3>${title}</h3>
+                        <p class="amount">${toBengaliNumber(count)}টি</p>
+                        ${totalAmount !== null ? `<p class="stat-subtitle">মোট: ৳ ${totalAmount.toLocaleString("bn-BD")}</p>` : ""}
+                    </div>
+                    <a href="${link}" class="btn btn-secondary btn-sm">বিস্তারিত <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

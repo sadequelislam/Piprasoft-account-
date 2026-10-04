@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cost / Expense Entry - Accounts Panel</title>
+
+    <!-- Favicon 404 Error ফিক্স করার কোড -->
+    <link rel="icon" href="data:,">
+
+    <!-- FontAwesome & Inter Font for minimal UI -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-storage-compat.js"></script>
+
+    <style>
+        /* ================= Clean, Professional UI ================= */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+        }
+
+        /* টপবার লুকানো হলো যেন উপরে জায়গা নষ্ট না হয় */
+        #app-topbar {
+            display: none !important;
+        }
+
+        /* কার্ডের ডিজাইন (ফাঁকা জায়গামুক্ত এবং ক্লিন) */
+        .modern-card {
+            background: #ffffff;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            padding: 20px 30px;
+            margin: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* খরচের পেজের জন্য বিশেষ হেডার (লাল রঙের) */
+        .form-header {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f0f2f5;
+        }
+
+        .form-header h2 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ================= রেসপন্সিভ ফর্ম গ্রিড ================= */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (max-width: 1200px) {
+            .form-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modern-card {
+                padding: 15px;
+            }
+        }
+
+        /* Clean Inputs */
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #606770;
+            margin-bottom: 8px;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            border: 1px solid #ccd0d5;
+            border-radius: 6px;
+            outline: none;
+            background: #fafbfc;
+            color: #1c1e21;
+            transition: 0.2s;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus,
+        .input-group textarea:focus {
+            border-color: #ef4444;
+            background: #fff;
+            box-shadow: 0 0 0 2px #fee2e2;
+        }
+
+        .hidden-input-group {
+            display: none;
+        }
+
+        /* Minimal File Upload */
+        .file-upload-wrapper {
+            border: 1px dashed #ccd0d5;
+            background-color: #fafbfc;
+            border-radius: 6px;
+            padding: 25px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .file-upload-wrapper:hover {
+            border-color: #ef4444;
+            background-color: #fef2f2;
+        }
+
+        .file-upload-wrapper i {
+            color: #8d949e;
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .file-upload-wrapper p {
+            margin: 0;
+            color: #1c1e21;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .file-upload-wrapper span {
+            display: block;
+            font-size: 12px;
+            color: #8d949e;
+            margin-top: 5px;
+        }
+
+        #inc-document {
+            display: none;
+        }
+
+        /* Submit Button (লাল রঙের) */
+        .btn-submit {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: 600;
+            border-radius: 6px;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.2s;
+        }
+
+        .btn-submit:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        /* Admin Checkbox Styling */
+        .admin-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ef4444 !important;
+            font-size: 14px !important;
+            cursor: pointer;
+            padding: 10px;
+            background: #fef2f2;
+            border-radius: 6px;
+            border: 1px dashed #ef4444;
+        }
+
+        .admin-checkbox-label input {
+            width: 18px !important;
+            height: 18px !important;
+            cursor: pointer;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body data-page="cost">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>Authenticating user...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ কন্টেইনার -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <!-- টপবার ট্যাগটি আছে, কিন্তু CSS দিয়ে লুকানো হয়েছে -->
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- মূল ফর্ম কার্ড -->
+            <div class="card modern-card">
+
+                <div class="form-header">
+                    <h2><i class="fa-solid fa-money-bill-transfer"></i> Cost / Expense Entry</h2>
+                </div>
+
+                <form id="form-expense">
+                    <div class="form-grid">
+                        <div class="input-group">
+                            <label>Expense Title / Recipient *</label>
+                            <!-- ডাইনামিক অটো সাজেশন -->
+                            <input type="text" id="exp-title" list="expense-names"
+                                placeholder="e.g. Office Rent / Electric Bill" required>
+                            <datalist id="expense-names"></datalist>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Amount (৳) *</label>
+                            <input type="number" id="exp-amount" min="1" placeholder="0.00" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Category *</label>
+                            <select id="exp-category" onchange="checkCategory(this)" required>
+                                <option value="Office Expense">Office Expense</option>
+                                <option value="Electricity / Utility">Electricity / Utility</option>
+                                <option value="Employee Salary">Employee Salary</option>
+                                <option value="Transport / Travel">Transport / Travel</option>
+                                <option value="Other Expense">Other Expense</option>
+                            </select>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Date *</label>
+                            <input type="date" id="exp-date" required>
+                        </div>
+
+                        <div class="input-group full-width hidden-input-group" id="other-reason-box">
+                            <label>Specific Reason *</label>
+                            <input type="text" id="exp-other-reason" placeholder="Type specific reason...">
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Attachment / Voucher (Optional)</label>
+                            <div class="file-upload-wrapper" id="upload-box">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                                <p id="file-name-display">Click to upload file</p>
+                                <span>Max size: 2 MB (JPG, PNG, PDF)</span>
+                            </div>
+                            <input type="file" id="inc-document" accept="image/jpeg, image/png, application/pdf">
+                        </div>
+
+                        <div class="input-group full-width">
+                            <label>Detailed Note (Optional)</label>
+                            <textarea id="exp-note" rows="2"
+                                placeholder="Add voucher number or transaction details..."></textarea>
+                        </div>
+
+                        <!-- শুধুমাত্র অ্যাডমিনদের জন্য চেকবক্স (ডিফল্টভাবে লুকানো থাকবে) -->
+                        <div class="input-group full-width" id="admin-controls" style="display: none;">
+                            <label class="admin-checkbox-label">
+                                <input type="checkbox" id="admin-direct-approve">
+                                Directly approve this expense (Direct Deposit)
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="btn-submit">
+                        Submit Request
+                    </button>
+                </form>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <script>
+        let isAdminUser = false;
+
+        function onPageReady(user) {
+            document.getElementById("exp-date").value = new Date().toISOString().split("T")[0];
+
+            // ইউজারের রোল চেকিং (অ্যাডমিন হলে চেকবক্স দেখাবে)
+            if (user && user.email && (user.email.includes("admin") || user.email === "superadmin@domain.com")) {
+                isAdminUser = true;
+                document.getElementById("admin-controls").style.display = "block";
+            }
+
+            const uploadBox = document.getElementById("upload-box");
+            const fileInput = document.getElementById("inc-document");
+            uploadBox.addEventListener("click", () => fileInput.click());
+            fileInput.addEventListener("change", handleFileSelect);
+
+            document.getElementById("form-expense").addEventListener("submit", async (e) => {
+                e.preventDefault();
+                await handleExpenseSubmit(user);
+            });
+
+            loadExpenseNames();
+        }
+
+        async function loadExpenseNames() {
+            try {
+                if (db) {
+                    const snapshot = await db.collection('transactions').where('type', '==', 'EXPENSE').get();
+                    const namesSet = new Set();
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        if (data.name) namesSet.add(data.name);
+                    });
+                    const datalist = document.getElementById('expense-names');
+                    datalist.innerHTML = "";
+                    namesSet.forEach(name => {
+                        const option = document.createElement('option');
+                        option.value = name;
+                        datalist.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error("সিস্টেম থেকে খরচের নাম লোড করতে সমস্যা হয়েছে: ", error);
+            }
+        }
+
+        function checkCategory(select) {
+            const otherBox = document.getElementById('other-reason-box');
+            const otherInput = document.getElementById('exp-other-reason');
+            if (select.value === "Other Expense") {
+                otherBox.style.display = "block";
+                otherInput.required = true;
+            } else {
+                otherBox.style.display = "none";
+                otherInput.required = false;
+                otherInput.value = "";
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            const display = document.getElementById('file-name-display');
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                alert("File size exceeds 2 MB.");
+                e.target.value = "";
+                return;
+            }
+            display.innerText = file.name;
+            display.style.color = "#ef4444";
+        }
+
+        async function handleExpenseSubmit(user) {
+            const submitBtn = document.getElementById("submit-btn");
+            const fileInput = document.getElementById("inc-document");
+            const file = fileInput.files[0];
+
+            submitBtn.classList.add("btn-loading");
+            submitBtn.innerText = "Submitting...";
+
+            let categoryValue = document.getElementById("exp-category").value;
+            if (categoryValue === "Other Expense") {
+                categoryValue = "Other: " + document.getElementById("exp-other-reason").value.trim();
+            }
+
+            // অ্যাডমিন চেকবক্সে টিক দিলে APPROVED হবে, না দিলে PENDING
+            let finalStatus = "PENDING";
+            if (isAdminUser && document.getElementById("admin-direct-approve").checked) {
+                finalStatus = "APPROVED";
+            }
+
+            let transactionData = {
+                type: "EXPENSE",
+                name: document.getElementById("exp-title").value.trim(),
+                amount: parseFloat(document.getElementById("exp-amount").value),
+                category: categoryValue,
+                date: document.getElementById("exp-date").value,
+                description: document.getElementById("exp-note").value.trim(),
+                status: finalStatus,
+                submittedBy: user ? user.uid : "Unknown",
+                createdAt: new Date().toISOString(),
+                documentDetails: { hasDocument: false, fileUrl: null, filePath: null, fileType: null }
+            };
+
+            // কনসোলে ডাটা লগ করা হলো 
+            console.log("Submitting Expense Data: ", transactionData);
+
+            try {
+                if (file) {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    transactionData.documentDetails = {
+                        hasDocument: true, fileUrl: "fake_url_for_now",
+                        filePath: `receipts/expense/fake_${file.name}`, fileType: file.type
+                    };
+                }
+
+                saveTransaction(transactionData, () => {
+                    if (finalStatus === "APPROVED") {
+                        alert("Expense approved and added to direct deposit successfully!");
+                    } else {
+                        alert("Expense request submitted successfully!");
+                    }
+                    window.location.href = "../dashboard/";
+                });
+            } catch (error) {
+                console.error("Error: ", error);
+                alert("An error occurred. Please try again.");
+                submitBtn.classList.remove("btn-loading");
+                submitBtn.innerText = "Submit Request";
+            }
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>প্রতিষ্ঠান সেটআপ - একাউন্টস প্যানেল</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<!-- data-page="founder" — common.js এটা দেখে বুঝবে এই পেজে org চেক করে রিডাইরেক্ট করতে হবে না -->
+<body data-page="founder">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>অ্যাকাউন্ট যাচাই করা হচ্ছে, অপেক্ষা করুন...</p>
+        </div>
+    </div>
+
+    <!-- ================= প্রতিষ্ঠান সেটআপ পেজ ================= -->
+    <div id="app-screen" class="login-wrapper hidden">
+        <div class="auth-card">
+
+            <!-- ব্র্যান্ড হেডার -->
+            <div class="brand-header">
+                <div class="logo-icon"><i class="fa-solid fa-building"></i></div>
+                <h1>প্রতিষ্ঠান সেটআপ</h1>
+                <p id="welcome-line">স্বাগতম! শুরু করতে একটি প্রতিষ্ঠান তৈরি করুন বা যোগ দিন</p>
+            </div>
+
+            <!-- এলার্ট -->
+            <div id="founder-alert" class="alert hidden"></div>
+
+            <!-- ========= অপশন ১: নতুন প্রতিষ্ঠান তৈরি ========= -->
+            <form id="form-create-org">
+                <div class="founder-section-title">
+                    <i class="fa-solid fa-plus-circle"></i> নতুন প্রতিষ্ঠান তৈরি করুন
+                </div>
+                <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">
+                    আপনি এই প্রতিষ্ঠানের <strong>ফাউন্ডার</strong> হবেন। তৈরি করার পর একটি <strong>Join Code</strong> পাবেন — দিয়ে অন্যরা আপনার প্রতিষ্ঠানে যোগ দিতে পারবে।
+                </p>
+                <div class="input-group">
+                    <label>প্রতিষ্ঠানের নাম *</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-building"></i>
+                        <input type="text" id="org-name" placeholder="যেমন: PipraSoft Hisab Nikas" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="btn-create-org">
+                    <i class="fa-solid fa-rocket"></i> প্রতিষ্ঠান তৈরি করুন
+                </button>
+            </form>
+
+            <div class="divider"><span>অথবা</span></div>
+
+            <!-- ========= অপশন ২: কোড দিয়ে যোগ দিন ========= -->
+            <form id="form-join-org">
+                <div class="founder-section-title">
+                    <i class="fa-solid fa-key"></i> কোড দিয়ে প্রতিষ্ঠানে যোগ দিন
+                </div>
+                <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 1rem;">
+                    আপনার এডমিন/ফাউন্ডার যে <strong>Join Code</strong>-টা দিয়েছেন সেটা নিচে লিখুন।
+                </p>
+                <div class="input-group">
+                    <label>Join Code *</label>
+                    <div class="input-with-icon">
+                        <i class="fa-solid fa-hashtag"></i>
+                        <input type="text" id="join-code" placeholder="যেমন: AB12CD" style="text-transform: uppercase;" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success btn-block" id="btn-join-org">
+                    <i class="fa-solid fa-right-to-bracket"></i> যোগ দিন
+                </button>
+            </form>
+
+            <p class="login-footer" style="margin-top: 1.5rem; color: var(--text-muted);">
+                <a onclick="doLogout()" style="color: var(--danger); font-weight: 600; cursor: pointer;">
+                    <i class="fa-solid fa-power-off"></i> লগআউট
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <!-- ========= সফল হলে: Join Code দেখানোর স্ক্রিন ========= -->
+    <div id="org-success-screen" class="login-wrapper hidden">
+        <div class="auth-card">
+            <div class="brand-header">
+                <div class="logo-icon" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 10px 22px -8px rgba(16,185,129,0.65);">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <h1>🎉 প্রতিষ্ঠান তৈরি হয়েছে!</h1>
+                <p id="success-org-name"></p>
+            </div>
+
+            <div class="join-code-box">
+                <p class="join-code-label">আপনার Join Code (সংরক্ষণ করুন!)</p>
+                <p class="join-code-value" id="success-join-code">------</p>
+                <button class="btn btn-secondary btn-sm" onclick="copyJoinCode()">
+                    <i class="fa-solid fa-copy"></i> কোড কপি করুন
+                </button>
+                <p class="text-muted" style="font-size: 0.82rem; margin-top: 0.75rem;">
+                    এই কোডটা আপনার সহকর্মী/ইউজারদের দিন — তারা রেজিস্টার করে এই কোড দিয়ে আপনার প্রতিষ্ঠানে যোগ দেবে।
+                </p>
+            </div>
+
+            <a href="index.html" class="btn btn-primary btn-block" style="margin-top: 1.25rem;">
+                <i class="fa-solid fa-chart-line"></i> ড্যাশবোর্ডে যান
+            </a>
+        </div>
+    </div>
+
+    <!-- Shared Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <!-- ============ এই পেজের নিজস্ব কোড ============ -->
+    <script>
+        let createdJoinCode = "";
+
+        // common.js লগইন ঠিক পেলে এই ফাংশনটা ডাকবে
+        // (org আগেই থাকলে common.js নিজেই ড্যাশবোর্ডে পাঠিয়ে দেবে)
+        function onPageReady(user) {
+            const name = (user.displayName || user.name || user.email || "").split("@")[0];
+            document.getElementById("welcome-line").innerText = "স্বাগতম " + name + "! শুরু করতে একটি প্রতিষ্ঠান তৈরি করুন বা যোগ দিন";
+
+            document.getElementById("form-create-org").addEventListener("submit", handleCreateOrg);
+            document.getElementById("form-join-org").addEventListener("submit", handleJoinOrg);
+        }
+
+        function showFounderAlert(msg, type = "error") {
+            const a = document.getElementById("founder-alert");
+            a.innerText = msg;
+            a.classList.remove("hidden", "alert-error", "alert-success");
+            a.classList.add(type === "success" ? "alert-success" : "alert-error");
+        }
+
+        // ইউনিক Join Code বানানো (৬ অক্ষর/সংখ্যা)
+        function generateJoinCode() {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let code = "";
+            for (let i = 0; i < 6; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return code;
+        }
+
+        // =====================================================
+        // অপশন ১: নতুন প্রতিষ্ঠান তৈরি
+        // =====================================================
+        function handleCreateOrg(e) {
+            e.preventDefault();
+
+            const orgName = document.getElementById("org-name").value.trim();
+            if (orgName.length < 2) {
+                showFounderAlert("অনুগ্রহ করে প্রতিষ্ঠানের নাম লিখুন।");
+                return;
+            }
+
+            const btn = document.getElementById("btn-create-org");
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> তৈরি হচ্ছে...';
+
+            const joinCode = generateJoinCode();
+
+            if (firestoreReady()) {
+                db.collection("organizations").add({
+                    name: orgName,
+                    joinCode: joinCode,
+                    founderUid: getUserId(),
+                    founderEmail: currentUser ? (currentUser.email || "") : "",
+                    createdAt: new Date().toISOString()
+                })
+                .then(orgRef => {
+                    // ইউজারের প্রোফাইলে প্রতিষ্ঠান যোগ + রোল FOUNDER
+                    return db.collection("users").doc(getUserId()).set({
+                        name: getAdminName(),
+                        orgId: orgRef.id,
+                        orgName: orgName,
+                        role: "FOUNDER",
+                        joinedAt: new Date().toISOString()
+                    }, { merge: true }).then(() => orgRef.id);
+                })
+                .then(orgId => {
+                    currentOrgId = orgId;
+                    currentOrgName = orgName;
+                    currentOrgRole = "FOUNDER";
+                    showSuccessScreen(orgName, joinCode);
+                })
+                .catch(err => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-rocket"></i> প্রতিষ্ঠান তৈরি করুন';
+                    showFounderAlert("ত্রুটি: " + err.message);
+                });
+            } else {
+                // ডেমো মোড
+                const orgs = JSON.parse(storageGet("demo_orgs_local") || "[]");
+                const orgId = "demo-org-" + Date.now();
+                orgs.push({ id: orgId, name: orgName, joinCode: joinCode });
+                storageSet("demo_orgs_local", JSON.stringify(orgs));
+                saveDemoOrg(orgId, orgName, "FOUNDER");
+                showSuccessScreen(orgName, joinCode);
+            }
+        }
+
+        // =====================================================
+        // অপশন ২: Join Code দিয়ে প্রতিষ্ঠানে যোগ দেওয়া
+        // =====================================================
+        function handleJoinOrg(e) {
+            e.preventDefault();
+
+            const code = document.getElementById("join-code").value.trim().toUpperCase();
+            if (code.length < 4) {
+                showFounderAlert("সঠিক Join Code লিখুন।");
+                return;
+            }
+
+            const btn = document.getElementById("btn-join-org");
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> খোঁজা হচ্ছে...';
+
+            function joinSuccess(orgId, orgName) {
+                currentOrgId = orgId;
+                currentOrgName = orgName;
+                currentOrgRole = "USER";
+                showFounderAlert("সফল! " + orgName + " প্রতিষ্ঠানে যোগ হয়েছেন। ড্যাশবোর্ডে যাচ্ছেন...", "success");
+                setTimeout(() => {
+                    window.location.replace("index.html");
+                }, 1200);
+            }
+
+            if (firestoreReady()) {
+                db.collection("organizations").where("joinCode", "==", code).limit(1).get()
+                    .then(snapshot => {
+                        if (snapshot.empty) {
+                            throw new Error("এই কোডে কোনো প্রতিষ্ঠান পাওয়া যায়নি। কোডটা আবার চেক করুন।");
+                        }
+                        const orgDoc = snapshot.docs[0];
+                        return db.collection("users").doc(getUserId()).set({
+                            orgId: orgDoc.id,
+                            orgName: orgDoc.data().name,
+                            role: "USER",
+                            joinedAt: new Date().toISOString()
+                        }, { merge: true }).then(() => joinSuccess(orgDoc.id, orgDoc.data().name));
+                    })
+                    .catch(err => {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> যোগ দিন';
+                        showFounderAlert(err.message || "কোড যাচাই করা যায়নি।");
+                    });
+            } else {
+                // ডেমো মোড
+                const orgs = JSON.parse(storageGet("demo_orgs_local") || "[]");
+                const found = orgs.find(o => (o.joinCode || "").toUpperCase() === code);
+                if (!found) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i> যোগ দিন';
+                    showFounderAlert("এই কোডে কোনো প্রতিষ্ঠান পাওয়া যায়নি (ডেমো মোড)।");
+                    return;
+                }
+                saveDemoOrg(found.id, found.name, "USER");
+                joinSuccess(found.id, found.name);
+            }
+        }
+
+        // সফল স্ক্রিন দেখানো (শুধু প্রতিষ্ঠান তৈরি করার পর)
+        function showSuccessScreen(orgName, joinCode) {
+            createdJoinCode = joinCode;
+            document.getElementById("app-screen").classList.add("hidden");
+            document.getElementById("org-success-screen").classList.remove("hidden");
+            document.getElementById("success-org-name").innerText = orgName + " সফলভাবে তৈরি হয়েছে। আপনি এই প্রতিষ্ঠানের ফাউন্ডার!";
+            document.getElementById("success-join-code").innerText = joinCode;
+        }
+
+        function copyJoinCode() {
+            if (!createdJoinCode) return;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(createdJoinCode).then(() => {
+                    alert("কোড কপি হয়েছে: " + createdJoinCode);
+                });
+            } else {
+                alert("কোডটা হাতে কপি করুন: " + createdJoinCode);
+            }
+        }
+
+        // লগআউট (founder পেজে সাইডবার নেই)
+        function doLogout() {
+            if (firebaseReady()) {
+                auth.signOut().then(() => window.location.replace("../index.html"));
+            } else {
+                storageRemove("demo_logged_user");
+                window.location.replace("../index.html");
+            }
+        }
+    </script>
+</body>
+</html>

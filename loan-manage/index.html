@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>লোন রিকোয়েস্ট ম্যানেজমেন্ট - একাউন্টস প্যানেল</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="loan-manage">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>লগইন যাচাই করা হচ্ছে, অপেক্ষা করুন...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- ================= সকল লোন রিকোয়েস্ট ================= -->
+            <div class="card card-table">
+                <div class="card-header">
+                    <div>
+                        <h2><i class="fa-solid fa-hand-holding-dollar"></i> সকল লোন রিকোয়েস্টের বিবরণ</h2>
+                        <p class="subtitle">অনুমোদন দিলে লোন প্রদান করা হবে — স্ট্যাটাস: অপেক্ষমান → অনুমোদিত → পরিশোধিত</p>
+                    </div>
+                    <div class="filter-group">
+                        <select id="loan-manage-filter">
+                            <option value="ALL">সকল স্ট্যাটাস</option>
+                            <option value="PENDING">অপেক্ষমান</option>
+                            <option value="APPROVED">অনুমোদিত</option>
+                            <option value="PAID">পরিশোধিত</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="loan-manage-table">
+                        <thead>
+                            <tr>
+                                <th>তারিখ</th>
+                                <th>গ্রহীতার নাম</th>
+                                <th>পরিমাণ (৳)</th>
+                                <th>যিনি পাঠিয়েছেন</th>
+                                <th>বিবরণ</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="loan-manage-tbody">
+                            <tr><td colspan="7" class="text-center">লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Shared Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <!-- ============ এই পেজের নিজস্ব কোড ============ -->
+    <script>
+        function onPageReady(user) {
+            // শুধু মেইন এডমিন বা লোন ম্যানেজমেন্টের পারমিশন থাকা সাব এডমিন
+            if (!hasPermission("manageLoans")) {
+                alert("এই পেজটি শুধুমাত্র মেইন এডমিন / লোন-ম্যানেজার সাব এডমিন দেখতে পারবেন!");
+                window.location.replace("../dashboard/");
+                return;
+            }
+
+            document.getElementById("loan-manage-filter").addEventListener("change", renderLoanManageTable);
+            initLoansListener(renderLoanManageTable);
+        }
+
+        function renderLoanManageTable() {
+            const tbody = document.getElementById("loan-manage-tbody");
+            if (!tbody) return;
+
+            const filterStatus = document.getElementById("loan-manage-filter")?.value || "ALL";
+            let filtered = loanRequests;
+            if (filterStatus !== "ALL") {
+                filtered = loanRequests.filter(l => l.status === filterStatus);
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center">কোনো লোন রিকোয়েস্ট পাওয়া যায়নি</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(l => {
+                // স্ট্যাটাস অনুযায়ী অ্যাকশন বাটন
+                let actionButtons = "";
+                if (l.status === "PENDING") {
+                    actionButtons += `<button class="btn btn-secondary btn-sm" onclick="updateLoanStatus('${escapeHtml(l.id)}', 'APPROVED')" title="অনুমোদন করে লোন প্রদান">
+                                        <i class="fa-solid fa-thumbs-up"></i> অনুমোদন (লোন দিন)
+                                      </button> `;
+                } else if (l.status === "APPROVED") {
+                    actionButtons += `<button class="btn btn-success btn-sm" onclick="updateLoanStatus('${escapeHtml(l.id)}', 'PAID')" title="পরিশোধ সম্পন্ন করুন">
+                                        <i class="fa-solid fa-check-double"></i> পরিশোধ
+                                      </button> `;
+                }
+                actionButtons += `<button class="btn btn-outline-danger btn-sm" onclick="deleteLoanRequest('${escapeHtml(l.id)}')" title="মুছে ফেলুন">
+                                    <i class="fa-solid fa-trash"></i>
+                                  </button>`;
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(l.date) || '-'}</td>
+                        <td><strong>${escapeHtml(l.borrowerName)}</strong></td>
+                        <td><strong>৳ ${Number(l.amount || 0).toLocaleString("bn-BD")}</strong></td>
+                        <td>${escapeHtml(l.requestedBy) || '-'}<br><small class="text-muted">${escapeHtml(l.creatorEmail) || ''}</small></td>
+                        <td>${escapeHtml(l.note) || '-'}</td>
+                        <td>
+                            <span class="badge ${LOAN_STATUS_BADGE[l.status] || 'badge-pending'}">
+                                ${LOAN_STATUS_LABEL[l.status] || l.status}
+                            </span>
+                        </td>
+                        <td><div class="action-group">${actionButtons}</div></td>
+                    </tr>
+                `;
+            }).join("");
+        }
+    </script>
+</body>
+</html>

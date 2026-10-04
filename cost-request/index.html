@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>খরচ রিকোয়েস্ট ম্যানেজমেন্ট - একাউন্টস প্যানেল</title>
+    <!-- FontAwesome & Google Fonts -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../style.css">
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body data-page="cost-request">
+
+    <!-- লগইন যাচাই হওয়া পর্যন্ত লোডিং -->
+    <div id="auth-loading" class="auth-loading">
+        <div class="auth-loading-inner">
+            <i class="fa-solid fa-spinner fa-spin spinner"></i>
+            <p>লগইন যাচাই করা হচ্ছে, অপেক্ষা করুন...</p>
+        </div>
+    </div>
+
+    <!-- প্রোটেক্টেড অ্যাপ -->
+    <div id="app-screen" class="app-container hidden">
+        <aside class="sidebar" id="app-sidebar"></aside>
+
+        <main class="main-content">
+            <header class="top-bar" id="app-topbar"></header>
+
+            <!-- ================= সকল খরচ রিকোয়েস্ট ================= -->
+            <div class="card card-table">
+                <div class="card-header">
+                    <div>
+                        <h2><i class="fa-solid fa-cart-arrow-down"></i> খরচ (ব্যয়) রিকোয়েস্টসমূহ</h2>
+                        <p class="subtitle">ইউজাররা যে খরচের রিকোয়েস্ট পাঠিয়েছে — অনুমোদন দিলে মূল লেনদেন তালিকায় যুক্ত হবে</p>
+                    </div>
+                    <div class="filter-group">
+                        <select id="cost-req-filter">
+                            <option value="ALL">সকল রিকোয়েস্ট</option>
+                            <option value="PENDING" selected>অপেক্ষমান</option>
+                            <option value="APPROVED">অনুমোদিত</option>
+                            <option value="REJECTED">বাতিল</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>তারিখ</th>
+                                <th>ধরন</th>
+                                <th>খাত / শিরোনাম</th>
+                                <th>পরিমাণ</th>
+                                <th>যিনি পাঠিয়েছেন</th>
+                                <th>বিবরণ</th>
+                                <th>স্ট্যাটাস</th>
+                                <th>অ্যাকশন</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cost-req-tbody">
+                            <tr><td colspan="8" class="text-center">লোড হচ্ছে...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Shared Scripts -->
+    <script src="../firebase-config.js"></script>
+    <script src="../js/common.js"></script>
+    <script src="../js/data.js"></script>
+
+    <!-- ============ এই পেজের নিজস্ব কোড ============ -->
+    <script>
+        function onPageReady(user) {
+            // শুধু মেইন এডমিন বা অনুমোদনের পারমিশন থাকা সাব এডমিন এই পেজ দেখতে পারবেন
+            if (!hasPermission("approveRequests")) {
+                alert("এই পেজটি শুধুমাত্র মেইন এডমিন / অনুমোদনকারী সাব এডমিন দেখতে পারবেন!");
+                window.location.replace("../dashboard/");
+                return;
+            }
+
+            document.getElementById("cost-req-filter").addEventListener("change", renderCostRequests);
+            initPendingListener(renderCostRequests);
+        }
+
+        function renderCostRequests() {
+            const filter = document.getElementById("cost-req-filter").value || "ALL";
+            const statuses = filter === "ALL" ? null : [filter];
+            renderRequestsTable("cost-req-tbody", { type: "EXPENSE", statuses: statuses, withActions: true });
+        }
+    </script>
+</body>
+</html>
