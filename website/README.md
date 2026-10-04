@@ -8,25 +8,41 @@
 website/
 ├── index.html            → 🔓 লগইন + রেজিস্টার পেজ (পাবলিক)
 ├── dashboard/
-│   └── index.html        → ১. ড্যাশবোর্ড (মেট্রিক্স + সাম্প্রতিক লেনদেন)
+│   └── index.html        → ১. ড্যাশবোর্ড (মেট্রিক্স + পেন্ডিং রিকোয়েস্ট কার্ড)
 ├── fee-prodan/
 │   └── index.html        → ২. ফি প্রদান (টাকা জমা ফর্ম)
 ├── cost/
 │   └── index.html        → ৩. খরচ (ব্যয় ফর্ম)
 ├── loan-request/
-│   └── index.html        → ৪. লোন রিকোয়েস্ট (নতুন!) 🆕
+│   └── index.html        → ৪. লোন রিকোয়েস্ট পাঠানো (ইউজার)
 ├── ledger/
 │   └── index.html        → ৫. সকল লেনদেন (লেজার + CSV এক্সপোর্ট)
+├── fee-request/
+│   └── index.html        → ৬. ফি রিকোয়েস্ট ম্যানেজমেন্ট (এডমিন) 🆕
+├── cost-request/
+│   └── index.html        → ৭. খরচ রিকোয়েস্ট ম্যানেজমেন্ট (এডমিন) 🆕
+├── loan-manage/
+│   └── index.html        → ৮. লোন ম্যানেজমেন্ট — অনুমোদন/পরিশোধ (এডমিন) 🆕
+├── sub-admin/
+│   └── index.html        → ৯. সাব এডমিন সিলেক্ট — পারমিশন দেওয়া (মেইন এডমিন) 🆕
 ├── settings/
-│   └── index.html        → ৬. সেটিং (ফায়ারবেস কনফিগ, এডমিন নাম, থিম)
+│   └── index.html        → ১০. সেটিং
 ├── js/
-│   ├── common.js         → সাইডবার + লগইন গার্ড + লগআউট + থিম (সব পেজে শেয়ার্ড)
-│   └── data.js           → লেনদেনের ডাটা লেয়ার (লোড/সেভ/মুছা/CSV)
+│   ├── common.js         → সাইডবার + লগইন গার্ড + রোল সিস্টেম (মেইন এডমিন/সাব এডমিন/ইউজার)
+│   └── data.js           → ডাটা লেয়ার (লেনদেন, রিকোয়েস্ট, লোন, পারমিশন)
 ├── login.js              → লগইন + রেজিস্টার + Google সাইন-ইন লজিক
 ├── firebase-config.js    → ফায়ারবেস কনফিগারেশন (API Key ইত্যাদি)
 ├── style.css             → পুরো ওয়েবসাইটের ডিজাইন
 └── firebase.json         → ফায়ারবেস হোস্টিং কনফিগ
 ```
+
+**রোল সিস্টেম:** মেইন এডমিন (নির্দিষ্ট ইমেইল) → সব কিছুর কন্ট্রোল। সাব এডমিন (মেইন এডমিন পারমিশন দেন) → নির্দিষ্ট কাজ। ইউজার → দেখা + রিকোয়েস্ট পাঠানো। এডমিন-পেজগুলো শুধু অনুমতি থাকলেই মেনুতে দেখায়।
+
+**🏢 প্রতিষ্ঠান (Organization) সিস্টেম:**
+- নতুন ইউজার রেজিস্টার করলে প্রথমে `dashboard/founder.html` (সেটআপ পেজ)-এ যায়
+- সেখানে দুইটা অপশন: **নতুন প্রতিষ্ঠান তৈরি করা** (ফাউন্ডার হবে + Join Code পাবে) অথবা **Join Code দিয়ে কোনো প্রতিষ্ঠানে যোগ দেওয়া**
+- ফাউন্ডার তার Join Code **সেটিং পেজে** দেখতে পাবেন — কোড দিয়ে সহকর্মীরা যোগ দেবে
+- প্রতিটি লেনদেন/রিকোয়েস্ট/লোন প্রতিষ্ঠান-ভিত্তিক — ইউজার শুধু নিজের প্রতিষ্ঠানের ডাটা দেখেন (মেইন এডমিন সব দেখেন)
 
 **URL আকারে (লাইভ থাকলে):** `your-project.web.app/dashboard/`, `your-project.web.app/loan-request/` ইত্যাদি — প্রতিটা সেকশনের নিজস্ব লিংক!
 
@@ -73,18 +89,49 @@ website/
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isMainAdmin() {
+      return request.auth != null && request.auth.token.email == "sadequelislam93@gmail.com";
+    }
+    function isSubAdminWith(perm) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/sub_admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/sub_admins/$(request.auth.uid)).data.permissions[perm] == true;
+    }
     match /transactions/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if isMainAdmin() || isSubAdminWith('addIncome') || isSubAdminWith('addExpense');
+      allow update, delete: if isMainAdmin();
     }
     match /loan_requests/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if isMainAdmin() || isSubAdminWith('manageLoans');
+    }
+    match /pending_entries/{docId} {
+      allow read: if isMainAdmin() || isSubAdminWith('approveRequests')
+        || (request.auth != null && resource.data.createdBy == request.auth.uid);
+      allow create: if request.auth != null;
+      allow update: if isMainAdmin() || isSubAdminWith('approveRequests');
+      allow delete: if isMainAdmin();
+    }
+    match /sub_admins/{uid} {
+      allow read: if request.auth != null;
+      allow write: if isMainAdmin();
+    }
+    match /organizations/{orgId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if isMainAdmin();
     }
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isMainAdmin() || (request.auth != null && request.auth.uid == userId);
+      allow write: if (request.auth != null && request.auth.uid == userId) || isMainAdmin();
     }
   }
 }
 ```
+
+> ⚠️ **গুরুত্বপূর্ণ:** এই রুলসে `sadequelislam93@gmail.com` হলো মেইন এডমিনের ইমেইল। এডমিন বদলালে `js/common.js`-এর `MAIN_ADMIN_EMAIL` **এবং** এই রুলসের ইমেইল — দুই জায়গাতেই বদলাতে হবে।
 
 ৬. Google সাইন-ইন শুধু অনুমোদিত (authorized) ডোমেইনে কাজ করে — `localhost` এবং আপনার `*.web.app` ডোমেইন ডিফল্টভাবেই অনুমোদিত থাকে, তাই আলাদা কিছু করা লাগবে না।
 

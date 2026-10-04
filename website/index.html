@@ -67,6 +67,9 @@
                 <button type="submit" class="btn btn-primary btn-block" id="btn-login">
                     <i class="fa-solid fa-right-to-bracket"></i> লগইন করুন
                 </button>
+                <p class="forgot-password">
+                    <a onclick="handleForgotPassword()"><i class="fa-solid fa-key"></i> পাসওয়ার্ড ভুলে গেছেন?</a>
+                </p>
                 <p class="switch-text">একাউন্ট নেই? <a onclick="switchAuthTab('register')">রেজিস্টার করুন</a></p>
             </form>
 
@@ -107,13 +110,6 @@
                 </button>
                 <p class="switch-text">একাউন্ট আছে? <a onclick="switchAuthTab('login')">লগইন করুন</a></p>
             </form>
-
-            <!-- ডেমো মোড নোটিশ -->
-            <div class="demo-login-notice">
-                <p><i class="fa-solid fa-circle-info"></i>
-                ডেমো মোড (Firebase কনফিগ না থাকলে): রেজিস্টার করা তথ্য শুধু এই ব্রাউজারে সেভ হবে।
-                Google লগইন ব্যবহার করতে Firebase সেটআপ করতে হবে।</p>
-            </div>
         </div>
 
         <p class="login-footer">© ২০২৬ একাউন্টস ও লেনদেন ম্যানেজমেন্ট সিস্টেম</p>

@@ -223,7 +223,7 @@ body {
     font-size: 0.95rem;
     pointer-events: none;
 }
-.input-with-icon input {
+.input-group .input-with-icon input {
     width: 100%;
     padding: 0.72rem 2.6rem 0.72rem 2.5rem;
     border: 1px solid var(--border-color);
@@ -235,7 +235,7 @@ body {
     outline: none;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.input-with-icon input:focus {
+.input-group .input-with-icon input:focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
@@ -258,6 +258,11 @@ body {
 .switch-text { text-align: center; margin-top: 1rem; font-size: 0.88rem; color: var(--text-muted); }
 .switch-text a { color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: none; }
 .switch-text a:hover { text-decoration: underline; }
+
+/* পাসওয়ার্ড ভুলে গেছেন? লিংক */
+.forgot-password { text-align: right; margin-top: 0.75rem; font-size: 0.85rem; }
+.forgot-password a { color: var(--primary); font-weight: 600; cursor: pointer; text-decoration: none; }
+.forgot-password a:hover { text-decoration: underline; }
 
 .login-footer {
     position: relative;
@@ -675,4 +680,135 @@ th {
 /* সেটিং পেজে সেভ বাটন */
 #btn-save-admin-name {
     margin-top: 0.75rem;
+}
+
+/* ============ রোল সিস্টেম (মেইন এডমিন / ইউজার) ============ */
+
+/* টপবারে রোল ব্যাজ */
+.role-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 20px;
+    vertical-align: middle;
+    margin-left: 10px;
+}
+.role-badge.role-admin { background: #e0e7ff; color: #3730a3; }   /* মেইন এডমিন - নীল */
+.role-badge.role-user  { background: #ecfdf5; color: #065f46; }   /* ইউজার - সবুজ */
+
+/* ইউজারদের তথ্য ব্যানার (হলুদ) */
+.notice-info {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+.notice-info i { margin-top: 3px; color: #d97706; }
+
+/* সাব এডমিনদের সবুজ ব্যানার (সরাসরি যুক্ত হবে) */
+.notice-success {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    padding: 0.9rem 1rem;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+.notice-success i { margin-top: 3px; color: #059669; }
+
+/* মেইন এডমিনের লিংক কার্ড (লোন ম্যানেজমেন্টে যাওয়ার) */
+.admin-link-card { background: linear-gradient(135deg, #eef2ff, #e0e7ff); border: 1px solid #c7d2fe; }
+.admin-link-inner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.admin-link-inner > i { font-size: 1.8rem; color: var(--primary); }
+.admin-link-inner h3 { font-size: 1.05rem; font-weight: 700; }
+.admin-link-inner p { font-size: 0.85rem; color: var(--text-muted); }
+.admin-link-inner .btn { margin-left: auto; }
+
+/* কার্ড হেডারের ডানপাশ (ব্যাজ + বাটন একসাথে) */
+.header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* সাব এডমিন ব্যাজ (টপবার) */
+.role-badge.role-subadmin { background: #fef3c7; color: #92400e; }  /* সাব এডমিন - হলুদ */
+
+/* পারমিশন চেকবক্স (সাব এডমিন পেজ) */
+.perm-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+/* পারমিশন বদলালে সারি হাইলাইট */
+tr.row-changed td { background: #fffbeb; }
+
+/* পেন্ডিং রিকোয়েস্টের সংখ্যা-কার্ড (ড্যাশবোর্ড) */
+.pending-stat-card { justify-content: space-between; }
+.pending-stat-card .metric-icon { background: #fef9c3; color: #a16207; }  /* হলুদ আইকন */
+.pending-stat-card .stat-subtitle { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+.pending-stat-card .btn { flex-shrink: 0; }
+
+/* ============ Founder পেজ (প্রতিষ্ঠান সেটআপ) ============ */
+
+/* সেকশনের শিরোনাম */
+.founder-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1.02rem;
+    font-weight: 700;
+    margin-bottom: 0.6rem;
+    color: var(--primary);
+}
+
+/* Join Code দেখানোর বক্স */
+.join-code-box {
+    background: var(--bg-light);
+    border: 2px dashed var(--primary);
+    border-radius: 14px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+}
+.join-code-label { font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+.join-code-value {
+    font-size: 2.1rem;
+    font-weight: 700;
+    letter-spacing: 8px;
+    color: var(--primary);
+    margin: 0.5rem 0 0.9rem;
+    font-family: monospace;
+}
+
+/* ফাউন্ডার ব্যাজ (টপবার) */
+.role-badge.role-founder { background: #fae8ff; color: #86198f; }  /* ফাউন্ডার - বেগুনি */
+
+/* সেটিং পেজে প্রতিষ্ঠানের তথ্য কার্ড */
+.org-info-card .org-name-big {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+.org-info-card .org-join-code {
+    display: inline-block;
+    background: var(--bg-light);
+    border: 1px dashed var(--primary);
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    font-family: monospace;
+    color: var(--primary);
+    margin-top: 6px;
 }
